@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Chat } from "@google/genai";
 import { Message, BibleVersion } from "../types";
 
@@ -41,8 +42,9 @@ export const initializeChat = (version: BibleVersion = BibleVersion.ESV, history
   `;
 
   // Convert internal Message format to Gemini history format
+  // Filter out streaming, empty, AND pending messages (offline queue)
   const formattedHistory = history
-    .filter(msg => !msg.isStreaming && msg.content.trim() !== '')
+    .filter(msg => !msg.isStreaming && msg.content.trim() !== '' && msg.status !== 'pending')
     .map(msg => ({
       role: msg.role,
       parts: [{ text: msg.content }]
@@ -93,7 +95,7 @@ export const generateChatSummary = async (messages: Message[]): Promise<string> 
   if (messages.length === 0) return "No conversation to summarize.";
 
   const conversationText = messages
-    .filter(m => !m.isStreaming)
+    .filter(m => !m.isStreaming && m.status !== 'pending')
     .map(m => `${m.role.toUpperCase()}: ${m.content}`)
     .join('\n\n');
 

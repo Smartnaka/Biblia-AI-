@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { MessageBubble } from './components/MessageBubble';
@@ -41,6 +42,11 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState<Message[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
+  // Offline State
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const processingQueueRef = useRef(false);
+  const messagesRef = useRef(messages); // Keep track of latest messages for async operations
+  
   // Summary State
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryText, setSummaryText] = useState('');
@@ -50,6 +56,70 @@ export default function App() {
   const [sessionId, setSessionId] = useState(() => uuidv4());
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Sync messagesRef with state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // Handle Online/Offline Status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      processOfflineQueue();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Try to process queue on mount if online
+    if (navigator.onLine) {
+        processOfflineQueue();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Process Pending Messages
+  const processOfflineQueue = async () => {
+    if (processingQueueRef.current) return;
+    processingQueueRef.current = true;
+
+    try {
+      // Find pending messages from the ref to ensure we have the latest state
+      // Filter for user messages that are pending
+      const pendingMessages = messagesRef.current.filter(m => m.status === 'pending' && m.role === 'user');
+
+      if (pendingMessages.length === 0) {
+        processingQueueRef.current = false;
+        return;
+      }
+
+      setIsLoading(true);
+
+      for (const msg of pendingMessages) {
+        if (!navigator.onLine) break; // Stop processing if we go offline again
+
+        // Update status to sent for this specific message
+        setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, status: 'sent' } : m));
+        
+        // Send to API
+        await performFullSend(msg.content);
+        
+        // Small delay to prevent race conditions or rate limits
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    } catch (error) {
+      console.error("Error processing offline queue:", error);
+    } finally {
+      setIsLoading(false);
+      processingQueueRef.current = false;
+    }
+  };
 
   // Load from local storage on mount
   useEffect(() => {
@@ -150,18 +220,8 @@ export default function App() {
     }
   };
 
-  const handleSendMessage = async (text: string) => {
-    const userMsgId = uuidv4();
-    const userMessage: Message = {
-      id: userMsgId,
-      role: 'user',
-      content: text,
-      timestamp: Date.now()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
-
+  // Core function to interact with Gemini API
+  const performFullSend = async (text: string) => {
     const botMsgId = uuidv4();
     const botMessagePlaceholder: Message = {
       id: botMsgId,
@@ -206,8 +266,31 @@ export default function App() {
             : msg
         )
       );
-    } finally {
+    }
+  };
+
+  const handleSendMessage = async (text: string) => {
+    const userMsgId = uuidv4();
+    const status = isOnline ? 'sent' : 'pending';
+    
+    const userMessage: Message = {
+      id: userMsgId,
+      role: 'user',
+      content: text,
+      timestamp: Date.now(),
+      status: status
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+
+    if (isOnline) {
+      setIsLoading(true);
+      await performFullSend(text);
       setIsLoading(false);
+    } else {
+      // Just added to state as pending. 
+      // UI will show "Waiting for connection..."
+      // processOfflineQueue will pick it up when online.
     }
   };
 
@@ -220,6 +303,7 @@ export default function App() {
         onToggleBookmarks={() => setSidebarOpen(true)}
         onSummarize={handleSummarize}
         hasMessages={messages.length > 0}
+        isOnline={isOnline}
       />
 
       <main className="flex-1 flex flex-col w-full max-w-3xl mx-auto pt-4 pb-32 sm:pb-40 relative z-0">

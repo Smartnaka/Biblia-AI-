@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Message } from '../types';
-import { Bot, Copy, Check, Bookmark } from 'lucide-react';
+import { Bot, Copy, Check, Bookmark, Clock } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
@@ -47,6 +48,7 @@ const ScriptureBlockquote = ({ children }: { children: React.ReactNode }) => {
 
 const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isBookmarked, onToggleBookmark }) => {
   const isUser = message.role === 'user';
+  const isPending = message.status === 'pending';
   const [copied, setCopied] = useState(false);
 
   // Memoize the components object to prevent unnecessary re-renders of ReactMarkdown
@@ -79,7 +81,9 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isBookm
             ${isUser 
               ? 'bg-stone-800 text-stone-50 rounded-2xl rounded-br-sm' 
               : 'bg-white border border-stone-200 text-stone-800 rounded-2xl rounded-bl-sm'
-            }`}
+            }
+            ${isPending ? 'opacity-80 border-2 border-dashed border-stone-400/30 bg-stone-700' : ''}
+          `}
         >
           {/* Header / Actions (Bot Only mostly, but available for both implicitly via hover) */}
           <div className="flex justify-between items-center mb-1">
@@ -90,8 +94,8 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isBookm
               </div>
             ) : <div />}
 
-            {/* Action Buttons */}
-            {!message.isStreaming && (
+            {/* Action Buttons - Hide if pending */}
+            {!message.isStreaming && !isPending && (
               <div className={`flex items-center gap-1 ${isUser ? 'text-stone-400' : 'text-stone-400'} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
                 <button 
                   onClick={handleCopyMessage}
@@ -125,9 +129,10 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({ message, isBookm
             </ReactMarkdown>
           </div>
 
-          {/* Timestamp */}
-          <div className={`text-[10px] mt-2 font-medium opacity-60 text-right ${isUser ? 'text-stone-300' : 'text-stone-400'}`}>
-             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {/* Timestamp & Status */}
+          <div className={`text-[10px] mt-2 font-medium opacity-60 text-right flex items-center justify-end gap-1 ${isUser ? 'text-stone-300' : 'text-stone-400'}`}>
+             {isPending && <Clock className="w-3 h-3 animate-pulse" />}
+             {isPending ? 'Waiting for connection...' : new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
       </div>

@@ -1,9 +1,11 @@
+
 export interface Message {
   id: string;
   role: 'user' | 'model';
   content: string;
   isStreaming?: boolean;
   timestamp: number;
+  status?: 'sent' | 'pending' | 'error';
 }
 
 export interface ChatState {

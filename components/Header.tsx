@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { BookOpen, ChevronDown, Plus, Bookmark, FileText } from 'lucide-react';
+import { BookOpen, ChevronDown, Plus, Bookmark, FileText, WifiOff } from 'lucide-react';
 import { BibleVersion } from '../types';
 
 interface HeaderProps {
@@ -9,6 +10,7 @@ interface HeaderProps {
   onToggleBookmarks: () => void;
   onSummarize: () => void;
   hasMessages: boolean;
+  isOnline: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -17,7 +19,8 @@ export const Header: React.FC<HeaderProps> = ({
   onNewChat, 
   onToggleBookmarks,
   onSummarize,
-  hasMessages
+  hasMessages,
+  isOnline
 }) => {
   return (
     <header 
@@ -38,12 +41,22 @@ export const Header: React.FC<HeaderProps> = ({
         
         {/* Actions */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          
+          {/* Offline Indicator */}
+          {!isOnline && (
+             <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-stone-100 border border-stone-200 rounded text-[10px] font-bold uppercase tracking-wide text-stone-500" title="Offline Mode">
+                <WifiOff className="w-3 h-3" />
+                <span>Offline</span>
+             </div>
+          )}
+
           {/* Summarize Button - Only show if there are messages */}
           {hasMessages && (
             <button
               onClick={onSummarize}
-              className="flex p-2 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors relative focus:outline-none focus:ring-2 focus:ring-amber-500"
-              title="Summarize Conversation"
+              disabled={!isOnline}
+              className="flex p-2 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors relative focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={isOnline ? "Summarize Conversation" : "Summarize unavailable offline"}
               aria-label="Summarize Conversation"
             >
               <FileText className="w-5 h-5" />
@@ -93,6 +106,14 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
+      
+      {/* Mobile Offline Banner */}
+      {!isOnline && (
+        <div className="sm:hidden bg-stone-100 border-t border-stone-200 py-1 px-2 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-wide text-stone-500">
+          <WifiOff className="w-3 h-3" />
+          <span>Offline Mode</span>
+        </div>
+      )}
     </header>
   );
 };
