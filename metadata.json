@@ -1,0 +1,7 @@
+{
+  "name": " Biblia AI",
+  "description": "A Bible Retrieval-Augmented Generation (RAG) assistant that answers theological questions with direct scripture citations and contextual analysis.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
